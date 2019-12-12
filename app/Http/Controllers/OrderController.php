@@ -4,9 +4,12 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use App\Address;
+use App\Customer;
 use App\Soqoem;
 use App\Soqoes;
+use App\Mail\SendMail;
 
 use DateTime;
 
@@ -16,7 +19,7 @@ class OrderController extends Controller
         $username = $request->username;
         $password = $request->password;
         $productsInfo = $request->products;
-        $shipDate = $request->shipdate;
+        $shipDate = $request->shipDate;
         $custComments = $request->comments;
         $custPONum = $request->ponum;
 
@@ -93,6 +96,53 @@ class OrderController extends Controller
             $soqoes->CUSTNO = $custNo;
             $soqoes->save();
         }
+
+        // send email with $username and $orderId
+        $order__MMColParam = empty($orderId) ? "1" : $orderId;
+        $order = Soqoem::selectRaw('t1.ORDERID, t1.ORDATE, t1.SHIPTO, t1.PONUM, t1.TOTAL, t1.COMMENT, t1.SHIPDATE, t1.CONTACT, t1.ADDRESS1, t1.ADDRESS2, t1.CITY, t1.STATE, t1.ZIP, t1.COUNTRY, t2.COMPANY, t2.email')
+            ->fromRaw('dbo.soqoem t1, dbo.aradrs t2')
+            ->where('t1.ORDERID', '=', $order__MMColParam)
+            ->whereRaw('t1.CUSTNO = t2.CUSTNO')
+            ->get();
+
+        $totalQty__MMColParam = empty($orderId) ? "1" : $orderId;
+        $totalQty = Soqoes::selectRaw('sum(QTYORD) as total')
+            ->where('ORDERID', '=', $orderId)
+            ->get();
+
+        if ($totalQty->count() === 0) 
+            $totalQty = [
+                'total' => 0
+            ];
+        else
+            $totalQty = $totalQty[0];
+
+        $detail__MMColParam = empty($orderId) ? "1" : $orderId;
+        $detail = Soqoes::selectRaw('t1.ITEM, t1.PRICE, t1.QTYORD, t2.DESCRIP')
+            ->fromRaw('dbo.soqoes t1, dbo.arinvt t2')
+            ->where('t1.ORDERID', '=', $orderId)
+            ->whereRaw('t1.ITEM = t2.ITEM')
+            ->get();
+
+        $loginInfo__MMColParam = empty($username) ? "1" : $username;
+        $loginInfo = Customer::where("CUSTNO", '=', $loginInfo__MMColParam)
+            ->get();
+
+        $to_name = $loginInfo[0]->COMPANY;
+        $to_email = $loginInfo[0]->EMAIL;
+        $data = [
+            'order'     => $order[0],
+            'totalQty'  => $totalQty,
+            'detail'    => $detail
+        ];
+
+        Mail::send('confirmemail', $data, function($message) use ($to_name, $to_email, $order) {
+            $message->to(explode(';', $to_email), $to_name)->subject('Order Confirmation from Lucky Produce ('.$order[0]->ORDERID.')');
+                //->cc(['akaraksya@dproduceman.com', 'sales@dproduceman.com', 'northwesternfruitco@gmail.com']);
+            $message->from('sales@dproduceman.com', 'Lucky Produce');
+        });
+
+        return [];
 
         DB::commit();
 

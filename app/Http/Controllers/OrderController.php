@@ -137,8 +137,8 @@ class OrderController extends Controller
         ];
 
         Mail::send('confirmemail', $data, function($message) use ($to_name, $to_email, $order) {
-            $message->to(explode(';', $to_email), $to_name)->subject('Order Confirmation from Lucky Produce ('.$order[0]->ORDERID.')');
-                //->cc(['akaraksya@dproduceman.com', 'sales@dproduceman.com', 'northwesternfruitco@gmail.com']);
+            $message->to(explode(';', $to_email), $to_name)->subject('Order Confirmation from Lucky Produce ('.$order[0]->ORDERID.')')
+                ->cc(['akaraksya@dproduceman.com', 'sales@dproduceman.com', 'northwesternfruitco@gmail.com']);
             $message->from('sales@dproduceman.com', 'Lucky Produce');
         });
 

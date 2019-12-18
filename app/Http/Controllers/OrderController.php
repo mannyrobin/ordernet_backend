@@ -142,8 +142,6 @@ class OrderController extends Controller
             $message->from('sales@dproduceman.com', 'Lucky Produce');
         });
 
-        return [];
-
         DB::commit();
 
         return [
